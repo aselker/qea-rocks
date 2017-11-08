@@ -35,12 +35,9 @@
 #define ANGLE_CORRECTION (0.092)
 
 extern int32_t angle_accum;
-extern int32_t speedLeft;
-extern int32_t driveLeft;
-extern int32_t distanceLeft;
-extern int32_t speedRight;
-extern int32_t driveRight;
-extern int32_t distanceRight;
+extern int32_t speedLeft, speedRight;
+extern int32_t driveLeft, driveRight;
+extern int32_t distanceLeft, distanceRight;
 
 void balanceDoDriveTicks();
 
@@ -71,29 +68,23 @@ void setup()
 }
 
 extern int16_t angle_prev;
-int16_t start_flag = 0;
-int16_t armed_flag = 0;
+bool start_flag = false, armed_flag = false; 
 int16_t start_counter = 0;
 void lyingDown();
 extern bool isBalancingStatus;
 extern bool balanceUpdateDelayedStatus;
 
 // Control constants
-float kpCruise = 500;
-float kiCruise = 5000;
-float kpAngle = 4;
-float kiAngle = 23;
-float kpPos = 1;
-float kiPos = 0;
+float kpCruise = 500, kiCruise = 5000;
+float kpAngle = 4, kiAngle = 23;
+float kpPos = 0.00008, kdPos = 0.003;
 
 // Error functions
 float vDesired = 0; //The speed goal output by the angle PI loop
-float errL = 0;
-float errR = 0;
-float intErrL = 0;
-float intErrR = 0;
+float errL = 0, errR = 0;
+float intErrL = 0, intErrR = 0; //"int" means "integral", not "integer"
 float angleError;
-
+float angleGoalAdjust; //How much to adjust "up" so we stay put
 
 
 void newBalanceUpdate()
@@ -119,7 +110,6 @@ void newBalanceUpdate()
 }
 
 
-float testSpeed = 0; // this is the desired motor speed
 
 void loop()
 {
@@ -130,7 +120,7 @@ void loop()
   if(angle > 3000 || angle < -3000)  start_counter = 0; // If angle is not within +- 3 degrees, reset counter that waits for start
 
   if((cur_time - prev_print_time) > 105) { //do the printing every 105 ms. Don't want to do it for an integer multiple of 10ms to not hog the processor
-    Serial.println(String(vDesired) + "\t" + String(angleError) + "\t" + String(angle) + "\t" + String(speedLeft) + "\t" + String(angle_accum) + "\t" + String(testSpeed));
+    Serial.println("Desired speed: " + String(vDesired) + "\tAngle error: " + String(angleError) + "\tAngle: " + String(angle) + "\tLeft wheel speed: " + String(speedLeft) + "\tAngle accumulator: " + String(angle_accum) + "\tAngle goal adjustment: " + String(angleGoalAdjust));
     prev_print_time = cur_time;
   }
 
@@ -144,7 +134,7 @@ void loop()
     if(start_counter > 30) //If the start counter is greater than 30, this means that the angle has been within +- 3 degrees for 0.3 seconds, then set the start_flag
     {
       angle_accum = 0;
-      armed_flag = 1;
+      armed_flag = true;
       buzzer.playFrequency(DIV_BY_10 | 445, 1000, 15);
     }
   }
@@ -152,8 +142,8 @@ void loop()
   // only start when the angle falls outside of the 3.0 degree band around 0.  This allows you to let go of the robot before it starts balancing
   if(cur_time - prev_time > UPDATE_TIME_MS && (angle < -3000 || angle > 3000) && armed_flag)   
   {
-    start_flag = 1;
-    armed_flag = 0;
+    start_flag = true;
+    armed_flag = false;
   }
 
   if(cur_time - prev_time > UPDATE_TIME_MS && start_flag) //every UPDATE_TIME_MS, if the start_flag has been set, do the balancing
@@ -161,12 +151,12 @@ void loop()
 
     prev_time = cur_time; // set the previous time to the current time for the next run through the loop
 
-    float angleGoal = 0; //Actually do a PID loop or something here
-    
-    angleError = ((float)angle)/1000/180*3.14159 - angleGoal - ANGLE_CORRECTION; //This finds the angle error, in radians
+    angleGoalAdjust = kpPos * (float(distanceLeft) + float(distanceRight))/2.0 + kdPos * (float(speedLeft) + float(speedRight))/2.0; //These are set elsewhere.  Nonlocality! =D
 
-    angle_accum += angleError * delta_t;
-    vDesired = angleError*kpAngle + angle_accum*kiAngle;
+    angleError = ((float)angle)/1000/180*3.14159 - ANGLE_CORRECTION; //This finds the angle error, in radians
+
+    angle_accum += (angleError + angleGoalAdjust) * delta_t;
+    vDesired = (angleError + angleGoalAdjust) * kpAngle + angle_accum * kiAngle;
     
 
     // speedLeft and speedRight are just the change in the encoder readings
@@ -186,9 +176,10 @@ void loop()
     // if the robot is more than 45 degrees, shut down the motor
     if(start_flag && fabs(angleError) > FORTY_FIVE_DEGREES_IN_RADIANS) {
       // reset the accumulated errors here
-      start_flag = 0;   /// wait for restart
+      start_flag = false;   /// wait for restart
       prev_time = 0;
       motors.setSpeeds(0, 0);
+      balanceResetEncoders(); //Reset the encoder distances, to avoid messing with the angle adjustment
     } else if(start_flag) motors.setSpeeds((int)PWM_left, (int)PWM_right);
   }
 
