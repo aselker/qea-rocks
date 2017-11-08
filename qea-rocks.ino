@@ -53,17 +53,19 @@ Balboa32U4Encoders encoders;
 Balboa32U4Buzzer buzzer;
 Balboa32U4ButtonA buttonA;
 
-uint32_t prev_time;
+uint32_t prev_time = 0; //The last time the balancing loop (not void loop()! ) ran
+uint32_t prev_print_time = 0; //The last time we printed over serial
 
 void setup()
 {
   Serial.begin(9600);
-  prev_time = 0;
+
+  angle_accum = 0; //Can't initialize this the normal way 'cause it's used in several files
+
   ledYellow(0);
   ledRed(1);
   balanceSetup();
   ledRed(0);
-  angle_accum = 0;
   ledGreen(0);
   ledYellow(0);
 }
@@ -81,13 +83,16 @@ float kpCruise = 500;
 float kiCruise = 5000;
 float kpAngle = 4;
 float kiAngle = 23;
+float kpPos = 1;
+float kiPos = 0;
 
 // Error functions
-float vDesired = 0;
+float vDesired = 0; //The speed goal output by the angle PI loop
 float errL = 0;
 float errR = 0;
 float intErrL = 0;
 float intErrR = 0;
+float angleError;
 
 
 
@@ -100,8 +105,7 @@ void newBalanceUpdate()
   balanceUpdateDelayedStatus = ms - lastMillis > UPDATE_TIME_MS + 1;
   lastMillis = ms;
 
-  // call functions to integrate encoders and gyros
-  balanceUpdateSensors();
+  balanceUpdateSensors(); // call functions to integrate encoders and gyros
  
    if (imu.a.x < 0)
   {
@@ -115,39 +119,29 @@ void newBalanceUpdate()
 }
 
 
-float testSpeed = 0;          // this is the desired motor speed
+float testSpeed = 0; // this is the desired motor speed
 
 void loop()
 {
-  uint32_t cur_time = 0;
-  static uint32_t prev_print_time = 0;   // this variable is to control how often we print on the serial monitor
-  static float angle_rad;                // this is the angle in radians
-  static float angle_rad_accum = 0;      // this is the accumulated angle in radians
-  static float del_theta = 0;
-  static float error_ = 0;      // this is the accumulated velocity error in m/s
-  static float error_left_accum = 0;      // this is the accumulated velocity error in m/s
-  static float error_right_accum = 0;      // this is the accumulated velocity error in m/s
+  uint32_t cur_time = millis();
 
-  cur_time = millis();                   // get the current time in miliseconds
-
-  newBalanceUpdate();                    // run the sensor updates. this function checks if it has been 10 ms since the previous 
+  newBalanceUpdate(); // run the sensor updates. Note that this function checks whether it's been at least 10ms since it was last run.
   
   if(angle > 3000 || angle < -3000)  start_counter = 0; // If angle is not within +- 3 degrees, reset counter that waits for start
 
-  if((cur_time - prev_print_time) > 105) //do the printing every 105 ms. Don't want to do it for an integer multiple of 10ms to not hog the processor
-    Serial.print(String(vDesired) + "\t" + String(angle_rad) + "\t" + String(angle) + "\t" + String(speedLeft) + "\t" + String(angle_accum) + "\t" + String(testSpeed));   
+  if((cur_time - prev_print_time) > 105) { //do the printing every 105 ms. Don't want to do it for an integer multiple of 10ms to not hog the processor
+    Serial.println(String(vDesired) + "\t" + String(angleError) + "\t" + String(angle) + "\t" + String(speedLeft) + "\t" + String(angle_accum) + "\t" + String(testSpeed));
+    prev_print_time = cur_time;
+  }
 
   float delta_t = (cur_time - prev_time)/1000.0;
 
-  // handle the case where this is the first time through the loop
-  if (prev_time == 0) delta_t = 0.01;
+  if (prev_time == 0) delta_t = 0.01; // handle the case where this is the first time through the loop
   
   // every UPDATE_TIME_MS, check if angle is within +- 3 degrees and we haven't set the start flag yet
   if(cur_time - prev_time > UPDATE_TIME_MS && angle > -3000 && angle < 3000 && !armed_flag) {
-    // increment the start counter
-    start_counter++;
-    // If the start counter is greater than 30, this means that the angle has been within +- 3 degrees for 0.3 seconds, then set the start_flag
-    if(start_counter > 30)
+    start_counter++; // Counts how long we've been withing a 3-deg range
+    if(start_counter > 30) //If the start counter is greater than 30, this means that the angle has been within +- 3 degrees for 0.3 seconds, then set the start_flag
     {
       angle_accum = 0;
       armed_flag = 1;
@@ -155,25 +149,25 @@ void loop()
     }
   }
 
-  // angle is in millidegrees, convert it to radians and subtract the desired theta
-  angle_rad = ((float)angle)/1000/180*3.14159 - del_theta - ANGLE_CORRECTION;
-
-  // only start when the angle falls outside of the 3.0 degree band around 0.  This allows you to let go of the
-  // robot before it starts balancing
+  // only start when the angle falls outside of the 3.0 degree band around 0.  This allows you to let go of the robot before it starts balancing
   if(cur_time - prev_time > UPDATE_TIME_MS && (angle < -3000 || angle > 3000) && armed_flag)   
   {
     start_flag = 1;
     armed_flag = 0;
   }
 
-  // every UPDATE_TIME_MS, if the start_flag has been set, do the balancing
-  if(cur_time - prev_time > UPDATE_TIME_MS && start_flag)
-  {
-    angle_accum += angle_rad*delta_t;
-    vDesired = angle_rad*kpAngle + angle_accum*kiAngle;
+  if(cur_time - prev_time > UPDATE_TIME_MS && start_flag) //every UPDATE_TIME_MS, if the start_flag has been set, do the balancing
+  { 
+
+    prev_time = cur_time; // set the previous time to the current time for the next run through the loop
+
+    float angleGoal = 0; //Actually do a PID loop or something here
     
-    // set the previous time to the current time for the next run through the loop
-    prev_time = cur_time;
+    angleError = ((float)angle)/1000/180*3.14159 - angleGoal - ANGLE_CORRECTION; //This finds the angle error, in radians
+
+    angle_accum += angleError * delta_t;
+    vDesired = angleError*kpAngle + angle_accum*kiAngle;
+    
 
     // speedLeft and speedRight are just the change in the encoder readings
     // wee need to do some math to get them into m/s
@@ -190,8 +184,7 @@ void loop()
     float PWM_right = errR*kpCruise + intErrR*kiCruise;
     
     // if the robot is more than 45 degrees, shut down the motor
-    if(start_flag && fabs(angle_rad) > FORTY_FIVE_DEGREES_IN_RADIANS) // TODO: this was set to angle < -0.78... I changd it to angle_rad
-    {
+    if(start_flag && fabs(angleError) > FORTY_FIVE_DEGREES_IN_RADIANS) {
       // reset the accumulated errors here
       start_flag = 0;   /// wait for restart
       prev_time = 0;
