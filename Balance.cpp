@@ -68,19 +68,9 @@ void lyingDown()
   if (angleRate > -6 && angleRate < 6)
   {
     // It's really calm, so we know the angles.
-    if (imu.a.z > 0)
-    {
-      
-      // this is based on coarse measurement of what I think the angle would be resting on the flat surface. 
-      // this corresponds to 94.8 degrees
-      angle = 94827;
-  
-    }
-    else
-    {
-      // this is based on coarse measurement of what I think the angle would be resting on the flat surface. 
-         angle = -94827; 
-    }
+    if (imu.a.z > 0) angle = 94827; // this is based on coarse measurement of what I think the angle would be resting on the flat surface. It corresponds to 94.8 degrees
+    else angle = -94827;
+
     distanceLeft = 0;
     distanceRight = 0;
   }
@@ -114,6 +104,7 @@ void balanceResetEncoders()
   distanceLeft = 0;
   distanceRight = 0;
 }
+
 uint32_t delta_ms = 0;
 void balanceUpdateSensors()
 {
@@ -127,5 +118,4 @@ void balanceUpdateSensors()
   delta_ms = prev_ms - cur_ms;
   prev_ms = cur_ms;
 }
-
 
