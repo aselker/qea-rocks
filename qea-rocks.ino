@@ -83,7 +83,7 @@ float kpAngle = 4, kiAngle = 27, kdAngle = 65;
 float kpPos = 0.00002, kiPos = 0.00000001, kdPos = 0.013;
 
 // Error functions
-float posDesired = 0.1;
+float posDesired = 0;
 float vDesired = 0; //The speed goal output by the angle PI loop
 float errL = 0, errR = 0;
 float intErrL = 0, intErrR = 0; //"int" means "integral", not "integer"
@@ -158,11 +158,11 @@ void loop()
 
     prev_time = cur_time; // set the previous time to the current time for the next run through the loop
 
-    if (cur_time - start_time > 5000) {
-      posDesired = 0.1;
-    }
+//    if (cur_time - start_time > 5000) {
+//      posDesired = 0.1;
+//    }
 
-    float pos = (float(distanceLeft) + float(distanceRight)) / 2.0 - posDesired;
+    float pos = (float(distanceLeft) + float(distanceRight)) / 2.0;
 
     posIntegral += pos;
 
