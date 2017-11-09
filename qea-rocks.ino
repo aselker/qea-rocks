@@ -77,9 +77,9 @@ extern bool balanceUpdateDelayedStatus;
 
 const float kpCruise = 500, kiCruise = 4000, kdCruise = 2;
 const float kpAngle = 4, kiAngle = 27, kdAngle = 0.2;
-const float kpPos = 0.00002, kiPos = 0.00000001, kdPos = 0.013;
+const float kpPos = 0.00006, kiPos = 0.00000001, kdPos = 0.013;
 
-const int deadSpot = 10;
+const int deadSpot = 15;
 
 // Error functions
 float posDesired = 0;
@@ -134,7 +134,7 @@ void loop()
   if (prev_time == 0) delta_t = 0.01; // handle the case where this is the first time through the loop
   
   // every UPDATE_TIME_MS, check if angle is within +- 3 degrees and we haven't set the start flag yet
-  if(cur_time - prev_time > UPDATE_TIME_MS && angle > -3000 && angle < 3000 && !armed_flag) {
+  if(cur_time - prev_time > UPDATE_TIME_MS && angle > -3000 && angle < 3000 && !armed_flag && !start_flag) {
     start_counter++; // Counts how long we've been withing a 3-deg range
     if(start_counter > 30) //If the start counter is greater than 30, this means that the angle has been within +- 3 degrees for 0.3 seconds, then set the start_flag
     {
@@ -157,8 +157,8 @@ void loop()
 
     prev_time = cur_time; // set the previous time to the current time for the next run through the loop
 
-    posDesired = (cur_time - start_time) * 0.5;
-    spinDesired = sin((cur_time - start_time) / 1000) * 0.1;
+    //posDesired = (cur_time - start_time) * 0.5;
+    //spinDesired = sin((cur_time - start_time) / 1000) * 0.1;
 
     float pos = (float(distanceLeft) + float(distanceRight)) / 2.0;
 
