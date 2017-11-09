@@ -67,6 +67,7 @@ void setup()
   ledYellow(0);
 }
 
+float start_time = 0;
 extern int16_t angle_prev;
 bool start_flag = false, armed_flag = false; 
 int16_t start_counter = 0;
@@ -77,11 +78,12 @@ extern bool balanceUpdateDelayedStatus;
 // Control constants
 float kpCruise = 500, kiCruise = 4000, kdCruise = 1;
 //float kpAngle = 4, kiAngle = 23;
-float kpAngle = 4, kiAngle = 27, kdAngle = 0.2;
+float kpAngle = 4, kiAngle = 27, kdAngle = 65;
 //float kpPos = 0.00008, kdPos = 0.003;
 float kpPos = 0.00002, kiPos = 0.00000001, kdPos = 0.013;
 
 // Error functions
+float posDesired = 0.1;
 float vDesired = 0; //The speed goal output by the angle PI loop
 float errL = 0, errR = 0;
 float intErrL = 0, intErrR = 0; //"int" means "integral", not "integer"
@@ -137,6 +139,7 @@ void loop()
     start_counter++; // Counts how long we've been withing a 3-deg range
     if(start_counter > 30) //If the start counter is greater than 30, this means that the angle has been within +- 3 degrees for 0.3 seconds, then set the start_flag
     {
+      start_time = millis();
       angle_accum = 0;
       armed_flag = true;
       buzzer.playFrequency(DIV_BY_10 | 445, 200, 15);
@@ -155,7 +158,11 @@ void loop()
 
     prev_time = cur_time; // set the previous time to the current time for the next run through the loop
 
-    float pos = (float(distanceLeft) + float(distanceRight)) / 2.0;
+    if (cur_time - start_time > 5000) {
+      posDesired = 0.1;
+    }
+
+    float pos = (float(distanceLeft) + float(distanceRight)) / 2.0 - posDesired;
 
     posIntegral += pos;
 
@@ -164,7 +171,7 @@ void loop()
     angleError = ((float)angle)/1000/180*3.14159 - ANGLE_CORRECTION; //This finds the angle error, in radians
 
     angle_accum += (angleError + angleGoalAdjust) * delta_t;
-    vDesired = (angleError + angleGoalAdjust) * kpAngle + angle_accum * kiAngle + (angleError - lastAngleError) * kdAngle / delta_t;
+    vDesired = (angleError + angleGoalAdjust) * kpAngle + angle_accum * kiAngle + ((angleError - lastAngleError)/delta_t) * kdAngle;
 
     lastAngleError = angleError;
     
