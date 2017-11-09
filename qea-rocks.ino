@@ -75,12 +75,11 @@ void lyingDown();
 extern bool isBalancingStatus;
 extern bool balanceUpdateDelayedStatus;
 
-// Control constants
-float kpCruise = 500, kiCruise = 4000, kdCruise = 1;
-//float kpAngle = 4, kiAngle = 23;
-float kpAngle = 4, kiAngle = 27, kdAngle = 65;
-//float kpPos = 0.00008, kdPos = 0.003;
-float kpPos = 0.00002, kiPos = 0.00000001, kdPos = 0.013;
+const float kpCruise = 500, kiCruise = 4000, kdCruise = 2;
+const float kpAngle = 4, kiAngle = 27, kdAngle = 0.2;
+const float kpPos = 0.00002, kiPos = 0.00000001, kdPos = 0.013;
+
+const int deadSpot = 10;
 
 // Error functions
 float posDesired = 0;
@@ -158,20 +157,18 @@ void loop()
 
     prev_time = cur_time; // set the previous time to the current time for the next run through the loop
 
-//    if (cur_time - start_time > 5000) {
-//      posDesired = 0.1;
-//    }
+    //posDesired = (cur_time - start_time) * ((cur_time - start_time) / 3000);
 
     float pos = (float(distanceLeft) + float(distanceRight)) / 2.0;
 
-    posIntegral += pos;
+    posIntegral += (pos - posDesired);
 
-    angleGoalAdjust = kpPos * pos + kiPos * posIntegral + kdPos * (float(speedLeft) + float(speedRight))/2.0; //These are set elsewhere.  Nonlocality! =D
+    angleGoalAdjust = kpPos * (pos - posDesired)  + kiPos * posIntegral + kdPos * (float(speedLeft) + float(speedRight))/2.0; //These are set elsewhere.  Nonlocality! =D
 
     angleError = ((float)angle)/1000/180*3.14159 - ANGLE_CORRECTION; //This finds the angle error, in radians
 
     angle_accum += (angleError + angleGoalAdjust) * delta_t;
-    vDesired = (angleError + angleGoalAdjust) * kpAngle + angle_accum * kiAngle + ((angleError - lastAngleError)/delta_t) * kdAngle;
+    vDesired = (angleError + angleGoalAdjust) * kpAngle + angle_accum * kiAngle + (angleError - lastAngleError) * kdAngle / delta_t;
 
     lastAngleError = angleError;
     
@@ -189,11 +186,17 @@ void loop()
     float PWM_left = errL*kpCruise + intErrL*kiCruise - (vL - vLLast)*kdCruise / delta_t;
     float PWM_right = errR*kpCruise + intErrR*kiCruise - (vR - vRLast)*kdCruise / delta_t;
 
+    //Dead spot compensation
+    if (PWM_left > 0) PWM_left += deadSpot;
+    else PWM_left -= deadSpot;
+    if (PWM_right > 0) PWM_right += deadSpot;
+    else PWM_right -= deadSpot;
+
     vLLast = vL;
     vRLast = vR;
     
     // if the robot is more than 45 degrees, shut down the motor
-    if(start_flag && fabs(angleError) > FORTY_FIVE_DEGREES_IN_RADIANS) {
+    if(start_flag && fabs(angleError + angleGoalAdjust) > FORTY_FIVE_DEGREES_IN_RADIANS) {
       // reset the accumulated errors here
       start_flag = false;   /// wait for restart
       prev_time = 0;
