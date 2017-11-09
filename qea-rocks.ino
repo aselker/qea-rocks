@@ -77,7 +77,7 @@ extern bool balanceUpdateDelayedStatus;
 // Control constants
 float kpCruise = 500, kiCruise = 4000, kdCruise = 1;
 //float kpAngle = 4, kiAngle = 23;
-float kpAngle = 4, kiAngle = 27, kdAngle = 65;
+float kpAngle = 4, kiAngle = 27, kdAngle = 0.2;
 //float kpPos = 0.00008, kdPos = 0.003;
 float kpPos = 0.00002, kiPos = 0.00000001, kdPos = 0.013;
 
@@ -164,7 +164,7 @@ void loop()
     angleError = ((float)angle)/1000/180*3.14159 - ANGLE_CORRECTION; //This finds the angle error, in radians
 
     angle_accum += (angleError + angleGoalAdjust) * delta_t;
-    vDesired = (angleError + angleGoalAdjust) * kpAngle + angle_accum * kiAngle + (angleError - lastAngleError) * kdAngle;
+    vDesired = (angleError + angleGoalAdjust) * kpAngle + angle_accum * kiAngle + (angleError - lastAngleError) * kdAngle / delta_t;
 
     lastAngleError = angleError;
     
