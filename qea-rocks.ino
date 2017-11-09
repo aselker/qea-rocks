@@ -198,11 +198,12 @@ void loop()
     
     // if the robot is more than 45 degrees, shut down the motor
     if(start_flag && fabs(angleError + angleGoalAdjust) > FORTY_FIVE_DEGREES_IN_RADIANS) {
-      // reset the accumulated errors here
       start_flag = false;   /// wait for restart
       prev_time = 0;
       motors.setSpeeds(0, 0);
       balanceResetEncoders(); //Reset the encoder distances, to avoid messing with the angle adjustment
+      angleGoalAdjust = 0;
+      posIntegral = 0; angle_accum = 0;//And reset the integrals
     } else if(start_flag) motors.setSpeeds((int)PWM_left, (int)PWM_right);
   }
 
