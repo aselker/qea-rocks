@@ -80,7 +80,7 @@ const int16_t SPEED_RESPONSE = 3300;
 
 // The balancing code is all based on a 100 Hz update rate; if
 // you change this, you will have to adjust many other things.
-const uint8_t UPDATE_TIME_MS = 10;
+const uint8_t UPDATE_TIME_MS = 03;
 
 // Take 100 measurements initially to calibrate the gyro.
 const uint8_t CALIBRATION_ITERATIONS = 100;

@@ -75,16 +75,20 @@ extern bool isBalancingStatus;
 extern bool balanceUpdateDelayedStatus;
 
 // Control constants
-float kpCruise = 500, kiCruise = 5000;
-float kpAngle = 4, kiAngle = 23;
-float kpPos = 0.00008, kdPos = 0.003;
+float kpCruise = 500, kiCruise = 4000, kdCruise = 1;
+//float kpAngle = 4, kiAngle = 23;
+float kpAngle = 4, kiAngle = 27, kdAngle = 65;
+//float kpPos = 0.00008, kdPos = 0.003;
+float kpPos = 0.00002, kiPos = 0.00000001, kdPos = 0.013;
 
 // Error functions
 float vDesired = 0; //The speed goal output by the angle PI loop
 float errL = 0, errR = 0;
 float intErrL = 0, intErrR = 0; //"int" means "integral", not "integer"
-float angleError;
+float vLLast = 0, vRLast = 0; //For the D term
+float angleError, lastAngleError = 0;
 float angleGoalAdjust; //How much to adjust "up" so we stay put
+float posIntegral = 0;
 
 
 void newBalanceUpdate()
@@ -135,7 +139,7 @@ void loop()
     {
       angle_accum = 0;
       armed_flag = true;
-      buzzer.playFrequency(DIV_BY_10 | 445, 1000, 15);
+      buzzer.playFrequency(DIV_BY_10 | 445, 200, 15);
     }
   }
 
@@ -151,14 +155,19 @@ void loop()
 
     prev_time = cur_time; // set the previous time to the current time for the next run through the loop
 
-    angleGoalAdjust = kpPos * (float(distanceLeft) + float(distanceRight))/2.0 + kdPos * (float(speedLeft) + float(speedRight))/2.0; //These are set elsewhere.  Nonlocality! =D
+    float pos = (float(distanceLeft) + float(distanceRight)) / 2.0;
+
+    posIntegral += pos;
+
+    angleGoalAdjust = kpPos * pos + kiPos * posIntegral + kdPos * (float(speedLeft) + float(speedRight))/2.0; //These are set elsewhere.  Nonlocality! =D
 
     angleError = ((float)angle)/1000/180*3.14159 - ANGLE_CORRECTION; //This finds the angle error, in radians
 
     angle_accum += (angleError + angleGoalAdjust) * delta_t;
-    vDesired = (angleError + angleGoalAdjust) * kpAngle + angle_accum * kiAngle;
-    
+    vDesired = (angleError + angleGoalAdjust) * kpAngle + angle_accum * kiAngle + (angleError - lastAngleError) * kdAngle;
 
+    lastAngleError = angleError;
+    
     // speedLeft and speedRight are just the change in the encoder readings
     // wee need to do some math to get them into m/s
     float vL = METERS_PER_CLICK*speedLeft/delta_t;
@@ -170,8 +179,11 @@ void loop()
     intErrL += errL*delta_t;
     intErrR += errR*delta_t;
 
-    float PWM_left = errL*kpCruise + intErrL*kiCruise;
-    float PWM_right = errR*kpCruise + intErrR*kiCruise;
+    float PWM_left = errL*kpCruise + intErrL*kiCruise - (vL - vLLast)*kdCruise / delta_t;
+    float PWM_right = errR*kpCruise + intErrR*kiCruise - (vR - vRLast)*kdCruise / delta_t;
+
+    vLLast = vL;
+    vRLast = vR;
     
     // if the robot is more than 45 degrees, shut down the motor
     if(start_flag && fabs(angleError) > FORTY_FIVE_DEGREES_IN_RADIANS) {
