@@ -83,6 +83,7 @@ const int deadSpot = 10;
 
 // Error functions
 float posDesired = 0;
+float spinDesired = 0;
 float vDesired = 0; //The speed goal output by the angle PI loop
 float errL = 0, errR = 0;
 float intErrL = 0, intErrR = 0; //"int" means "integral", not "integer"
@@ -113,7 +114,6 @@ void newBalanceUpdate()
     isBalancingStatus = true;
   }
 }
-
 
 
 void loop()
@@ -157,7 +157,8 @@ void loop()
 
     prev_time = cur_time; // set the previous time to the current time for the next run through the loop
 
-    //posDesired = (cur_time - start_time) * ((cur_time - start_time) / 3000);
+    posDesired = (cur_time - start_time) * 0.5;
+    spinDesired = sin((cur_time - start_time) / 1000) * 0.1;
 
     float pos = (float(distanceLeft) + float(distanceRight)) / 2.0;
 
@@ -174,8 +175,8 @@ void loop()
     
     // speedLeft and speedRight are just the change in the encoder readings
     // wee need to do some math to get them into m/s
-    float vL = METERS_PER_CLICK*speedLeft/delta_t;
-    float vR = METERS_PER_CLICK*speedRight/delta_t;
+    float vL = (METERS_PER_CLICK*speedLeft/delta_t) + spinDesired;
+    float vR = (METERS_PER_CLICK*speedRight/delta_t) - spinDesired;
 
     errL = vDesired-vL;
     errR = vDesired-vR;
