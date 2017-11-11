@@ -75,11 +75,17 @@ void lyingDown();
 extern bool isBalancingStatus;
 extern bool balanceUpdateDelayedStatus;
 
+/* These work for a robot with small weights up top.
 const float kpCruise = 500, kiCruise = 4000, kdCruise = 2;
 const float kpAngle = 4, kiAngle = 27, kdAngle = 0.2;
 const float kpPos = 0.00006, kiPos = 0.00000001, kdPos = 0.013;
+*/
+// These work with a robot with large weights
+const float kpCruise = 400, kiCruise = 4000, kdCruise = 2;
+const float kpAngle = 3, kiAngle = 13, kdAngle = 0.13;
+const float kpPos = 0.00006, kiPos = 0.000000009, kdPos = 0.015;
 
-const int deadSpot = 15;
+const int deadSpot = 12;
 
 // Error functions
 float posDesired = 0;
