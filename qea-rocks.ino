@@ -92,10 +92,10 @@ const float kpPos = 0.00007, kiPos = 0.000000012, kdPos = 0.016;
 
 // These work with a robot with large weights
 const float kpCruise = 400, kiCruise = 4000, kdCruise = 2.5;
-const float kpAngle = 3, kiAngle = 13, kdAngle = 0.14;
-const float kpPos = 0.00004, kiPos = 0.000000009, kdPos = 0.016;
+const float kpAngle = 3, kiAngle = 15, kdAngle = 0.16;
+const float kpPos = 0.00002, kiPos = 0.000000009, kdPos = 0.015;
 
-const int deadSpot = 13;
+const int deadSpot = 15;
 
 // Error functions
 float posDesired = 0;
@@ -193,7 +193,8 @@ void loop()
 
     prev_time = cur_time; // set the previous time to the current time for the next run through the loop
     if (moveMode) { // If we're moving, start moving the setpoint
-      posDesired = (cur_time - start_time) * 2;   
+      if (cur_time - start_time < 3000) posDesired = (cur_time - start_time) * 2;
+      else posDesired = 3000 * 2;
     } else {
       posDesired = 0;
     }
