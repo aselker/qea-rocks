@@ -34,6 +34,7 @@
 #define FORTY_FIVE_DEGREES_IN_RADIANS 0.78
 #define ANGLE_CORRECTION (0.092)
 
+
 extern int32_t angle_accum;
 extern int32_t speedLeft, speedRight;
 extern int32_t driveLeft, driveRight;
@@ -49,6 +50,9 @@ Balboa32U4Motors motors;
 Balboa32U4Encoders encoders;
 Balboa32U4Buzzer buzzer;
 Balboa32U4ButtonA buttonA;
+Balboa32U4ButtonB buttonB;
+Balboa32U4ButtonC buttonC;
+
 
 uint32_t prev_time = 0; //The last time the balancing loop (not void loop()! ) ran
 uint32_t prev_print_time = 0; //The last time we printed over serial
@@ -67,6 +71,9 @@ void setup()
   ledYellow(0);
 }
 
+bool moveMode = false;
+bool spinMode = false;
+
 float start_time = 0;
 extern int16_t angle_prev;
 bool start_flag = false, armed_flag = false; 
@@ -74,10 +81,11 @@ int16_t start_counter = 0;
 void lyingDown();
 extern bool isBalancingStatus;
 extern bool balanceUpdateDelayedStatus;
+const float POS_METERS = 1.0;
 
 // These work for a robot with small weights up top.
 const float kpCruise = 260, kiCruise = 4000, kdCruise = 3;
-const float kpAngle = 3, kiAngle = 25, kdAngle = 0.35;
+const float kpAngle = 3, kiAngle = 25, kdAngle = 0.3;
 const float kpPos = 0.00007, kiPos = 0.000000012, kdPos = 0.016;
 
 /*
@@ -126,6 +134,25 @@ void newBalanceUpdate()
 
 void loop()
 {
+  // Use the buttons to select the mode
+  if (buttonA.getSingleDebouncedPress())
+  {
+    moveMode = false;
+    spinMode = false;
+  }
+  else if (buttonB.getSingleDebouncedPress())
+  {
+    moveMode = true;
+    spinMode = false;
+  }
+  else if (buttonC.getSingleDebouncedPress())
+  {
+    moveMode = false;
+    spinMode = true;
+  }
+
+
+  
   uint32_t cur_time = millis();
 
   newBalanceUpdate(); // run the sensor updates. Note that this function checks whether it's been at least 10ms since it was last run.
@@ -133,7 +160,7 @@ void loop()
   if(angle > 3000 || angle < -3000)  start_counter = 0; // If angle is not within +- 3 degrees, reset counter that waits for start
 
   if((cur_time - prev_print_time) > 105) { //do the printing every 105 ms. Don't want to do it for an integer multiple of 10ms to not hog the processor
-    Serial.println("Desired speed: " + String(vDesired) + "\tAngle error: " + String(angleError) + "\tAngle: " + String(angle) + "\tLeft wheel speed: " + String(speedLeft) + "\tAngle accumulator: " + String(angle_accum) + "\tAngle goal adjustment: " + String(angleGoalAdjust));
+//    Serial.println("Desired speed: " + String(vDesired) + "\tAngle error: " + String(angleError) + "\tAngle: " + String(angle) + "\tLeft wheel speed: " + String(speedLeft) + "\tAngle accumulator: " + String(angle_accum) + "\tAngle goal adjustment: " + String(angleGoalAdjust));
     prev_print_time = cur_time;
   }
 
@@ -148,6 +175,7 @@ void loop()
     {
       start_time = millis();
       angle_accum = 0;
+      posDesired = 0;
       armed_flag = true;
       buzzer.playFrequency(DIV_BY_10 | 445, 200, 15);
     }
@@ -164,11 +192,23 @@ void loop()
   { 
 
     prev_time = cur_time; // set the previous time to the current time for the next run through the loop
+    if (moveMode) { // If we're moving, start moving the setpoint
+      posDesired = (cur_time - start_time) * 2;   
+    } else {
+      posDesired = 0;
+    }
 
-    //posDesired = (cur_time - start_time) * 0.5;
-    //spinDesired = sin((cur_time - start_time) / 1000) * 0.1;
+    // Uncomment this for SPIN
+    if (spinMode) {
+      spinDesired = 0.17;
+    }
 
     float pos = (float(distanceLeft) + float(distanceRight)) / 2.0;
+    Serial.print(pos);
+    Serial.print("\t");
+    Serial.print(POS_METERS/ METERS_PER_CLICK);
+    Serial.print("\t");
+    Serial.println(posDesired);
 
     posIntegral += (pos - posDesired);
 
