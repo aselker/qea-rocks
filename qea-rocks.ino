@@ -83,19 +83,19 @@ extern bool isBalancingStatus;
 extern bool balanceUpdateDelayedStatus;
 const float POS_METERS = 1.0;
 
+/*
 // These work for a robot with small weights up top.
 const float kpCruise = 260, kiCruise = 4000, kdCruise = 3;
 const float kpAngle = 3, kiAngle = 25, kdAngle = 0.3;
 const float kpPos = 0.00007, kiPos = 0.000000012, kdPos = 0.016;
-
-/*
-// These work with a robot with large weights
-const float kpCruise = 400, kiCruise = 4000, kdCruise = 2;
-const float kpAngle = 3, kiAngle = 13, kdAngle = 0.13;
-const float kpPos = 0.00006, kiPos = 0.000000009, kdPos = 0.015;
 */
 
-const int deadSpot = 10;
+// These work with a robot with large weights
+const float kpCruise = 400, kiCruise = 4000, kdCruise = 2.5;
+const float kpAngle = 3, kiAngle = 13, kdAngle = 0.14;
+const float kpPos = 0.00004, kiPos = 0.000000009, kdPos = 0.016;
+
+const int deadSpot = 13;
 
 // Error functions
 float posDesired = 0;
